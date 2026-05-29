@@ -13,9 +13,24 @@
       canvas { 
         display: block; 
       }
+      #score {
+        position: absolute;
+        top: 10vh; /* Pushes it down 10% from the top of the screen */
+        width: 100%;
+        text-align: center;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-size: 80px;
+        font-weight: bold;
+        color: white;
+        z-index: 10; /* Ensures it renders above the 3D canvas */
+        pointer-events: none; /* Allows mouse clicks to pass right through the text */
+        text-shadow: 2px 4px 10px rgba(0,0,0,0.3); /* Adds a nice drop shadow */
+      }
     </style>
   </head>
   <body>
+    <div id="score">0</div>
+    
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -20,6 +20,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
 directionalLight.position.set(10, 20, 0);
 scene.add(directionalLight);
 
+const scoreElement = document.getElementById('score');
 // --- GAME STATE ---
 const boxes = []; 
 const overhangs = []; // Array to store the pieces that fall off
@@ -74,6 +75,8 @@ if (overlap > 0) {
         // 1. Create the box that successfully landed
         const placedBox = createBox(newX, currentBox.position.y, 0, overlap, boxSize, currentBox.material.color.getHex());
         boxes.push(placedBox);
+
+        scoreElement.innerText = boxes.length - 1;
 
         // --- NEW: GENERATE THE FALLING PIECE ---
         const overhangWidth = Math.abs(distance);
