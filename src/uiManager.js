@@ -1,65 +1,111 @@
-export function setupUI(onRestartClick) {
-    // 1. Create the overlay container
+export function setupUI(onRestartClick, onSubmitScoreClick) {
     const modal = document.createElement('div');
     modal.style.cssText = `
-        display: none; 
-        position: absolute; 
-        top: 0; left: 0; 
-        width: 100vw; height: 100vh; 
-        background-color: rgba(0, 0, 0, 0.7); 
-        z-index: 20; 
-        flex-direction: column; 
-        justify-content: center; 
-        align-items: center; 
-        font-family: 'Helvetica Neue', Arial, sans-serif; 
-        color: white;
+        display: none; position: absolute; top: 0; left: 0; 
+        width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.85); 
+        z-index: 20; flex-direction: column; justify-content: center; 
+        align-items: center; font-family: 'Helvetica Neue', Arial, sans-serif; color: white;
     `;
 
-    // 2. Create the Title
     const title = document.createElement('h1');
     title.innerText = "GAME OVER";
-    title.style.cssText = "font-size: 60px; margin-bottom: 10px; text-shadow: 2px 4px 10px rgba(0,0,0,0.5);";
+    title.style.cssText = "font-size: 50px; margin-bottom: 10px; color: #e74c3c;";
 
-    // 3. Create the Score Display
     const scoreDisplay = document.createElement('p');
-    scoreDisplay.style.cssText = "font-size: 24px; margin-bottom: 30px;";
-    
-    // 4. Create the Restart Button
-    const restartBtn = document.createElement('button');
-    restartBtn.innerText = "Play Again";
-    restartBtn.style.cssText = `
-        padding: 15px 40px; 
-        font-size: 24px; 
-        font-weight: bold; 
-        color: white; 
-        background-color: #e74c3c; 
-        border: none; 
-        border-radius: 8px; 
-        cursor: pointer; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    `;
+    scoreDisplay.style.cssText = "font-size: 24px; margin-bottom: 20px; font-weight: bold;";
 
-    // Add a simple hover effect using JS events
-    restartBtn.addEventListener('mouseenter', () => restartBtn.style.backgroundColor = '#c0392b');
-    restartBtn.addEventListener('mouseleave', () => restartBtn.style.backgroundColor = '#e74c3c');
+    // --- FORM SECTION (To enter name) ---
+    const formContainer = document.createElement('div');
+    formContainer.style.cssText = "display: flex; flex-direction: column; align-items: center;";
 
-    // 5. Connect the Restart Logic
-    restartBtn.addEventListener('click', () => {
-        modal.style.display = 'none'; // Hide the modal
-        onRestartClick(); // Run the reset logic from main.js
+    const nameInput = document.createElement('input');
+    nameInput.type = "text";
+    nameInput.placeholder = "Enter your username...";
+    nameInput.maxLength = 15;
+    nameInput.style.cssText = "padding: 10px; font-size: 20px; margin-bottom: 15px; border-radius: 5px; border: none; text-align: center;";
+
+    const submitBtn = document.createElement('button');
+    submitBtn.innerText = "Submit Score";
+    submitBtn.style.cssText = "padding: 12px 30px; font-size: 20px; font-weight: bold; color: white; background-color: #2ecc71; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 10px;";
+
+    const skipBtn = document.createElement('button');
+    skipBtn.innerText = "Skip & Play Again";
+    skipBtn.style.cssText = "padding: 10px 20px; font-size: 16px; color: white; background-color: #95a5a6; border: none; border-radius: 8px; cursor: pointer;";
+    // ------------------------------------
+
+    // --- LEADERBOARD SECTION ---
+    const leaderboardContainer = document.createElement('div');
+    leaderboardContainer.style.cssText = "display: none; flex-direction: column; align-items: center; width: 300px;";
+
+    const loadingText = document.createElement('p');
+    loadingText.innerText = "Fetching global scores...";
+
+    const listElement = document.createElement('ol');
+    listElement.style.cssText = "font-size: 20px; width: 100%; text-align: left; padding-left: 20px; margin-bottom: 20px;";
+
+    const playAgainBtn = document.createElement('button');
+    playAgainBtn.innerText = "Play Again";
+    playAgainBtn.style.cssText = "padding: 15px 40px; font-size: 24px; font-weight: bold; color: white; background-color: #e74c3c; border: none; border-radius: 8px; cursor: pointer;";
+    // ---------------------------
+
+    // Button Events
+    submitBtn.addEventListener('click', () => {
+        const username = nameInput.value || "Anonymous";
+        formContainer.style.display = 'none';
+        leaderboardContainer.style.display = 'flex';
+        loadingText.style.display = 'block';
+        listElement.style.display = 'none';
+        onSubmitScoreClick(username); // Triggers the database logic in main.js
     });
 
-    // 6. Assemble everything and attach to the webpage
+    const triggerRestart = () => {
+        modal.style.display = 'none';
+        nameInput.value = ''; // Clear input for next time
+        onRestartClick();
+    };
+
+    skipBtn.addEventListener('click', triggerRestart);
+    playAgainBtn.addEventListener('click', triggerRestart);
+
+    // Assemble Form
+    formContainer.appendChild(nameInput);
+    formContainer.appendChild(submitBtn);
+    formContainer.appendChild(skipBtn);
+
+    // Assemble Leaderboard
+    leaderboardContainer.appendChild(loadingText);
+    leaderboardContainer.appendChild(listElement);
+    leaderboardContainer.appendChild(playAgainBtn);
+
+    // Assemble Modal
     modal.appendChild(title);
     modal.appendChild(scoreDisplay);
-    modal.appendChild(restartBtn);
+    modal.appendChild(formContainer);
+    modal.appendChild(leaderboardContainer);
     document.body.appendChild(modal);
 
-    // 7. Return the functions we want to use in main.js
     return {
         showGameOver: (finalScore) => {
             scoreDisplay.innerText = `Final Score: ${finalScore}`;
-            modal.style.display = 'flex'; // Reveals the modal
+            formContainer.style.display = 'flex';
+            leaderboardContainer.style.display = 'none';
+            modal.style.display = 'flex';
+            nameInput.focus();
+        },
+        showLeaderboard: (topScores) => {
+            loadingText.style.display = 'none';
+            listElement.innerHTML = ''; // Clear old scores
+            
+            // Loop through the data and create a list item for each score
+            topScores.forEach(item => {
+                const li = document.createElement('li');
+                // Lootlocker returns a 'player' object with a 'name', and a 'score'
+                const playerName = item.player.name || item.player.id; 
+                li.innerText = `${playerName}: ${item.score}`;
+                listElement.appendChild(li);
+            });
+            
+            listElement.style.display = 'block';
         }
     };
 }

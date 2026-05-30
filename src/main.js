@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 import { setupUI } from './uiManager.js';
+import { loginGuest, setPlayerName, submitScore, getTopScores } from './api.js'
+
+// --- INITIALIZE CLOUD DATABASE ---
+// This runs in the background as soon as the webpage opens
+loginGuest()
+    .then(() => console.log("Successfully connected to LootLocker!"))
+    .catch((err) => console.error("Database connection failed:", err));
 
 // --- SETUP ---
 const scene = new THREE.Scene();
@@ -23,7 +30,19 @@ scene.add(directionalLight);
 
 const scoreElement = document.getElementById('score');
 const comboElement = document.getElementById('combo');
-const ui = setupUI(resetGame);
+// --- INITIALIZE UI ---
+const ui = setupUI(resetGame, async (username) => {
+    // This code runs when the player clicks "Submit Score"
+    try {
+        await setPlayerName(username);       // 1. Save their name to the cloud
+        await submitScore(Math.ceil(score)); // 2. Save their score to the cloud
+        const top10 = await getTopScores();  // 3. Download the global high scores
+        ui.showLeaderboard(top10);           // 4. Update the screen
+    } catch (error) {
+        console.error("Failed to submit score:", error);
+        alert("Something went wrong connecting to the leaderboard!");
+    }
+});
 // --- GAME STATE ---
 const boxes = []; 
 const overhangs = []; // Array to store the pieces that fall off
