@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setupUI } from './uiManager.js';
 
 // --- SETUP ---
 const scene = new THREE.Scene();
@@ -22,6 +23,7 @@ scene.add(directionalLight);
 
 const scoreElement = document.getElementById('score');
 const comboElement = document.getElementById('combo');
+const ui = setupUI(resetGame);
 // --- GAME STATE ---
 const boxes = []; 
 const overhangs = []; // Array to store the pieces that fall off
@@ -157,7 +159,7 @@ function placeBox() {
         let startX = placedBoxX; 
         let startZ = placedBoxZ;
 
-        // If score is 50+, allow 4 sides. Otherwise, just 2.
+        // If score is 30+, allow 4 sides. Otherwise, just 2.
         const numSides = score >= 30 ? 4 : 2;
         const randomSide = Math.floor(Math.random() * numSides);
 
@@ -178,11 +180,49 @@ function placeBox() {
         
     } else {
         gameEnded = true;
-        alert("Game Over! Refresh the page to try again.");
+        // Trigger the module to show the modal!
+        ui.showGameOver(Math.ceil(score));
     }
+    
 }
+    // --- RESET GAME LOGIC ---
+function resetGame() {
+    if (currentBox) scene.remove(currentBox);
 
-// --- GAME LOOP ---
+    // Remove stacked boxes EXCEPT the foundation
+    for (let i = 1; i < boxes.length; i++) {
+        scene.remove(boxes[i]);
+    }
+    boxes.splice(1); 
+
+    // Remove falling pieces and ripples
+    overhangs.forEach(obj => scene.remove(obj));
+    overhangs.length = 0; 
+    ripples.forEach(obj => scene.remove(obj));
+    ripples.length = 0;
+
+    // Reset Camera
+    camera.position.set(10, 10, 10);
+    camera.lookAt(0, 0, 0);
+
+    // Reset variables
+    score = 0;
+    perfectCombo = 0;
+    currentWidth = boxSize;
+    currentDepth = boxSize; 
+    movingAxis = 'x';
+    gameEnded = false;
+    isAnimating = false;
+    speed = 0.08;
+
+    scoreElement.innerText = '0';
+    comboElement.innerText = '';
+
+    // Spawn new box
+    const startFirstFromLeft = Math.random() > 0.5;
+    currentBox = createBox(startFirstFromLeft ? -7 : 7, boxHeight, 0, boxSize, boxSize, 0xe74c3c);
+    movingDirection = startFirstFromLeft ? 1 : -1;
+}
 // --- GAME LOOP ---
 function animate() {
     requestAnimationFrame(animate);
