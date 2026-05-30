@@ -59,107 +59,124 @@ currentBox.position.x = -7;
 // --- PHASE 4: SLICING LOGIC ---
 let gameEnded = false;
 let currentWidth = boxSize; 
+let currentDepth = boxSize; // NEW: Track the depth of the box
+let movingAxis = 'x';       // NEW: Track if it's moving on 'x' or 'z'
 let isAnimating = false;
 
 window.addEventListener('pointerdown', placeBox);
 
 function placeBox() {
-    if (gameEnded || isAnimating) return; // Stop if game over OR if on cooldown
+    if (gameEnded || isAnimating) return; 
     
-    isAnimating = true; // Lock the function
+    isAnimating = true; 
 
     const topBox = boxes[boxes.length - 1];
-    const distance = currentBox.position.x - topBox.position.x;
+    
+    // Calculate distance on the ACTIVE axis
+    const distance = currentBox.position[movingAxis] - topBox.position[movingAxis];
     const absDistance = Math.abs(distance);
     
-    // --- NEW: PERFECT MATCH TOLERANCE ---
-    const tolerance = 0.2; // Allow up to 0.2 offset for a perfect match
+    const tolerance = 0.2; 
     const isPerfect = absDistance <= tolerance;
 
-    // If perfect, we force the overlap to stay the same size. If not, we shrink it.
-    const overlap = isPerfect ? currentWidth : currentWidth - absDistance;
+    // Grab the dimension of the active axis
+    const activeDimension = movingAxis === 'x' ? currentWidth : currentDepth;
+    const overlap = isPerfect ? activeDimension : activeDimension - absDistance;
 
     if (overlap > 0) {
         // --- SUCCESS ---
-        
-        // If perfect, snap perfectly to the box below. Otherwise, shift it to the new chopped center.
-        const newX = isPerfect ? topBox.position.x : topBox.position.x + (distance / 2);
+        const newPos = isPerfect ? topBox.position[movingAxis] : topBox.position[movingAxis] + (distance / 2);
         
         scene.remove(currentBox);
         
-        // 1. Create the box that successfully landed
-        const placedBox = createBox(newX, currentBox.position.y, 0, overlap, boxSize, currentBox.material.color.getHex());
+        // Calculate new dimensions
+        const newWidth = movingAxis === 'x' ? overlap : currentWidth;
+        const newDepth = movingAxis === 'z' ? overlap : currentDepth;
+        
+        // Calculate new placement position
+        const placedBoxX = movingAxis === 'x' ? newPos : currentBox.position.x;
+        const placedBoxZ = movingAxis === 'z' ? newPos : currentBox.position.z;
+
+        const placedBox = createBox(placedBoxX, currentBox.position.y, placedBoxZ, newWidth, newDepth, currentBox.material.color.getHex());
         boxes.push(placedBox);
 
-        // Update the score UI
-        scoreElement.innerText = boxes.length - 1;
+        // --- PERFECT RIPPLE ---
         if (isPerfect) {
-            let currentMultiplier = 1; // Default multiplier
+            const rippleGeometry = new THREE.BoxGeometry(newWidth + 0.2, 0.1, newDepth + 0.2);
+            const rippleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
+            ripple.position.set(placedBoxX, currentBox.position.y - (boxHeight / 2), placedBoxZ);
+            scene.add(ripple);
+            ripples.push(ripple); 
+        }
 
+        // --- MULTIPLIER AND COMBO LOGIC ---
+        let currentMultiplier = 1; 
         if (isPerfect) {
-            perfectCombo++; // Increase the streak!
-            
-            // Calculate the multiplier (Starts at 1.5x at 2 perfects, adds 0.5x every 3 perfects after)
+            perfectCombo++; 
             if (perfectCombo >= 2) {
                 currentMultiplier = 1 + (Math.floor((perfectCombo + 1) / 3) * 0.5);
             }
         } else {
-            perfectCombo = 0; // Reset streak if you missed slightly
+            perfectCombo = 0; 
         }
 
-        // Add the multiplier to the total score
         score += currentMultiplier;
-        // Automatically round the displayed score UP to the nearest whole number
-        scoreElement.innerText = Math.ceil(score);
+        scoreElement.innerText = Math.ceil(score); 
 
-        // Update the Combo UI Text
         if (currentMultiplier > 1) {
             comboElement.innerText = `x${currentMultiplier} COMBO!`;
-            // Make the text "pop" by quickly scaling it up and down
             comboElement.style.transform = 'scale(1.2)';
             setTimeout(() => { comboElement.style.transform = 'scale(1)'; }, 100);
         } else {
-            comboElement.innerText = ''; // Hide the text if no combo
+            comboElement.innerText = ''; 
         }
-            // Create a thin white box slightly larger than the current block
-            const rippleGeometry = new THREE.BoxGeometry(currentWidth + 0.2, 0.1, boxSize + 0.2);
-            // We use MeshBasicMaterial so it ignores lighting and glows bright white
-            const rippleMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0xffffff, 
-                transparent: true, 
-                opacity: 0.8 
-            });
-            const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
-            
-            // Position it exactly at the seam between the current box and the one below it
-            ripple.position.set(newX, currentBox.position.y - (boxHeight / 2), 0);
-            scene.add(ripple);
-            ripples.push(ripple); // Add it to our animation array
-        }
-        // --- GENERATE FALLING PIECE (ONLY IF NOT PERFECT) ---
+
+        // --- GENERATE FALLING PIECE ---
         if (!isPerfect) {
-            const overhangWidth = absDistance;
-            const overhangX = newX + (distance > 0 ? (overlap / 2 + overhangWidth / 2) : -(overlap / 2 + overhangWidth / 2));
+            const overhangWidth = movingAxis === 'x' ? absDistance : currentWidth;
+            const overhangDepth = movingAxis === 'z' ? absDistance : currentDepth;
+            const overhangPos = newPos + (distance > 0 ? (overlap / 2 + absDistance / 2) : -(overlap / 2 + absDistance / 2));
             
-            const overhangBox = createBox(overhangX, currentBox.position.y, 0, overhangWidth, boxSize, currentBox.material.color.getHex());
+            const overhangX = movingAxis === 'x' ? overhangPos : currentBox.position.x;
+            const overhangZ = movingAxis === 'z' ? overhangPos : currentBox.position.z;
+            
+            const overhangBox = createBox(overhangX, currentBox.position.y, overhangZ, overhangWidth, overhangDepth, currentBox.material.color.getHex());
             overhangs.push(overhangBox);
         }
-        // ----------------------------------------------------
 
-        currentWidth = overlap;
+        // --- UPDATE DIMENSIONS ---
+        if (movingAxis === 'x') currentWidth = overlap;
+        if (movingAxis === 'z') currentDepth = overlap;
 
         const nextY = currentBox.position.y + boxHeight;
         const randomColor = Math.random() * 0xffffff;
         
-        currentBox = createBox(-7, nextY, 0, currentWidth, boxSize, randomColor); 
-        movingDirection = 1; 
+        // --- THE 50-POINT 4-SIDE LOGIC ---
+        // Lock the non-moving axis to the placed box so it stays aligned
+        let startX = placedBoxX; 
+        let startZ = placedBoxZ;
+
+        // If score is 50+, allow 4 sides. Otherwise, just 2.
+        const numSides = score >= 30 ? 4 : 2;
+        const randomSide = Math.floor(Math.random() * numSides);
+
+        if (randomSide === 0) {
+            movingAxis = 'x'; startX = -7; movingDirection = 1;  // Left
+        } else if (randomSide === 1) {
+            movingAxis = 'x'; startX = 7;  movingDirection = -1; // Right
+        } else if (randomSide === 2) {
+            movingAxis = 'z'; startZ = -7; movingDirection = 1;  // Back
+        } else if (randomSide === 3) {
+            movingAxis = 'z'; startZ = 7;  movingDirection = -1; // Front
+        }
+        
+        currentBox = createBox(startX, nextY, startZ, currentWidth, currentDepth, randomColor); 
         speed += 0.005; 
         
-        // Unlock the function after a short 100ms delay to prevent double-clicks
         setTimeout(() => { isAnimating = false; }, 100);
         
     } else {
-        // --- FAILURE ---
         gameEnded = true;
         alert("Game Over! Refresh the page to try again.");
     }
@@ -170,13 +187,15 @@ function placeBox() {
 function animate() {
     requestAnimationFrame(animate);
 
-    if (currentBox && !gameEnded) { 
-        currentBox.position.x += speed * movingDirection;
+if (currentBox && !gameEnded) { 
+        // Move along the currently active axis (either 'x' or 'z')
+        currentBox.position[movingAxis] += speed * movingDirection;
 
-        if (currentBox.position.x > 7) {
+        // Bounce back if it hits the edges
+        if (currentBox.position[movingAxis] > 7) {
             movingDirection = -1;
         }
-        if (currentBox.position.x < -7) {
+        if (currentBox.position[movingAxis] < -7) {
             movingDirection = 1;
         }
     }
