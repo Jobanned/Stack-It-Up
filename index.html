@@ -26,11 +26,24 @@
         pointer-events: none; /* Allows mouse clicks to pass right through the text */
         text-shadow: 2px 4px 10px rgba(0,0,0,0.3); /* Adds a nice drop shadow */
       }
+      #combo {
+        position: absolute;
+        top: 22vh; /* Puts it right below the score */
+        width: 100%;
+        text-align: center;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-size: 30px;
+        font-weight: bold;
+        color: #f1c40f; /* A nice golden yellow */
+        z-index: 10; 
+        pointer-events: none; 
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        transition: transform 0.1s ease-in-out; /* Makes it pop when updated */
+      }
     </style>
   </head>
   <body>
     <div id="score">0</div>
-    
-    <script type="module" src="/src/main.js"></script>
+    <div id="combo"></div> <script type="module" src="/src/main.js"></script>
   </body>
 </html>

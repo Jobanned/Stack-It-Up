@@ -21,6 +21,7 @@ directionalLight.position.set(10, 20, 0);
 scene.add(directionalLight);
 
 const scoreElement = document.getElementById('score');
+const comboElement = document.getElementById('combo');
 // --- GAME STATE ---
 const boxes = []; 
 const overhangs = []; // Array to store the pieces that fall off
@@ -28,6 +29,10 @@ const ripples = []; // Ripple animation
 let currentBox = null;
 let speed = 0.08; 
 let movingDirection = 1; 
+
+// NEW SCORING VARIABLES
+let score = 0; 
+let perfectCombo = 0;
 
 const boxHeight = 1;
 const boxSize = 3;
@@ -89,6 +94,33 @@ function placeBox() {
         // Update the score UI
         scoreElement.innerText = boxes.length - 1;
         if (isPerfect) {
+            let currentMultiplier = 1; // Default multiplier
+
+        if (isPerfect) {
+            perfectCombo++; // Increase the streak!
+            
+            // Calculate the multiplier (Starts at 1.5x at 2 perfects, adds 0.5x every 3 perfects after)
+            if (perfectCombo >= 2) {
+                currentMultiplier = 1 + (Math.floor((perfectCombo + 1) / 3) * 0.5);
+            }
+        } else {
+            perfectCombo = 0; // Reset streak if you missed slightly
+        }
+
+        // Add the multiplier to the total score
+        score += currentMultiplier;
+        // Automatically round the displayed score UP to the nearest whole number
+        scoreElement.innerText = Math.ceil(score);
+
+        // Update the Combo UI Text
+        if (currentMultiplier > 1) {
+            comboElement.innerText = `x${currentMultiplier} COMBO!`;
+            // Make the text "pop" by quickly scaling it up and down
+            comboElement.style.transform = 'scale(1.2)';
+            setTimeout(() => { comboElement.style.transform = 'scale(1)'; }, 100);
+        } else {
+            comboElement.innerText = ''; // Hide the text if no combo
+        }
             // Create a thin white box slightly larger than the current block
             const rippleGeometry = new THREE.BoxGeometry(currentWidth + 0.2, 0.1, boxSize + 0.2);
             // We use MeshBasicMaterial so it ignores lighting and glows bright white
