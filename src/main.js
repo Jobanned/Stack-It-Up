@@ -24,6 +24,7 @@ const scoreElement = document.getElementById('score');
 // --- GAME STATE ---
 const boxes = []; 
 const overhangs = []; // Array to store the pieces that fall off
+const ripples = []; // Ripple animation
 let currentBox = null;
 let speed = 0.08; 
 let movingDirection = 1; 
@@ -64,11 +65,20 @@ function placeBox() {
 
     const topBox = boxes[boxes.length - 1];
     const distance = currentBox.position.x - topBox.position.x;
-    const overlap = currentWidth - Math.abs(distance);
+    const absDistance = Math.abs(distance);
+    
+    // --- NEW: PERFECT MATCH TOLERANCE ---
+    const tolerance = 0.2; // Allow up to 0.2 offset for a perfect match
+    const isPerfect = absDistance <= tolerance;
 
-if (overlap > 0) {
-        // Success
-        const newX = topBox.position.x + (distance / 2);
+    // If perfect, we force the overlap to stay the same size. If not, we shrink it.
+    const overlap = isPerfect ? currentWidth : currentWidth - absDistance;
+
+    if (overlap > 0) {
+        // --- SUCCESS ---
+        
+        // If perfect, snap perfectly to the box below. Otherwise, shift it to the new chopped center.
+        const newX = isPerfect ? topBox.position.x : topBox.position.x + (distance / 2);
         
         scene.remove(currentBox);
         
@@ -76,17 +86,33 @@ if (overlap > 0) {
         const placedBox = createBox(newX, currentBox.position.y, 0, overlap, boxSize, currentBox.material.color.getHex());
         boxes.push(placedBox);
 
+        // Update the score UI
         scoreElement.innerText = boxes.length - 1;
-
-        // --- NEW: GENERATE THE FALLING PIECE ---
-        const overhangWidth = Math.abs(distance);
-        // Figure out if it should fall to the right or the left
-        const overhangX = newX + (distance > 0 ? (overlap / 2 + overhangWidth / 2) : -(overlap / 2 + overhangWidth / 2));
-        
-        // Spawn the chopped piece and add it to our gravity array
-        const overhangBox = createBox(overhangX, currentBox.position.y, 0, overhangWidth, boxSize, currentBox.material.color.getHex());
-        overhangs.push(overhangBox);
-        // ----------------------------------------
+        if (isPerfect) {
+            // Create a thin white box slightly larger than the current block
+            const rippleGeometry = new THREE.BoxGeometry(currentWidth + 0.2, 0.1, boxSize + 0.2);
+            // We use MeshBasicMaterial so it ignores lighting and glows bright white
+            const rippleMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                transparent: true, 
+                opacity: 0.8 
+            });
+            const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
+            
+            // Position it exactly at the seam between the current box and the one below it
+            ripple.position.set(newX, currentBox.position.y - (boxHeight / 2), 0);
+            scene.add(ripple);
+            ripples.push(ripple); // Add it to our animation array
+        }
+        // --- GENERATE FALLING PIECE (ONLY IF NOT PERFECT) ---
+        if (!isPerfect) {
+            const overhangWidth = absDistance;
+            const overhangX = newX + (distance > 0 ? (overlap / 2 + overhangWidth / 2) : -(overlap / 2 + overhangWidth / 2));
+            
+            const overhangBox = createBox(overhangX, currentBox.position.y, 0, overhangWidth, boxSize, currentBox.material.color.getHex());
+            overhangs.push(overhangBox);
+        }
+        // ----------------------------------------------------
 
         currentWidth = overlap;
 
@@ -101,7 +127,7 @@ if (overlap > 0) {
         setTimeout(() => { isAnimating = false; }, 100);
         
     } else {
-        // Failure
+        // --- FAILURE ---
         gameEnded = true;
         alert("Game Over! Refresh the page to try again.");
     }
@@ -139,7 +165,24 @@ function animate() {
         overhangs[i].rotation.z += 0.05; // Add a nice little tumble effect
     }
     
-    // -------------------------------
+    // --- NEW: ANIMATE RIPPLES ---
+    // We loop backwards because we are removing items from the array as we go
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        const ripple = ripples[i];
+        
+        // Expand the ripple outwards
+        ripple.scale.x += 0.05;
+        ripple.scale.z += 0.05;
+        
+        // Fade it out
+        ripple.material.opacity -= 0.04;
+
+        // If it is completely invisible, delete it to save memory
+        if (ripple.material.opacity <= 0) {
+            scene.remove(ripple);
+            ripples.splice(i, 1);
+        }
+    }
 
     renderer.render(scene, camera);
 }
