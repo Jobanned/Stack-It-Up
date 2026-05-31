@@ -96,10 +96,12 @@ export function setupUI(onRestartClick, onSubmitScoreClick) {
             loadingText.style.display = 'none';
             listElement.innerHTML = ''; // Clear old scores
             
-            // Loop through the data and create a list item for each score
-            topScores.forEach(item => {
+            // --- NEW: Force the array to only keep the first 10 items ---
+            const strictlyTop10 = topScores.slice(0, 10);
+            
+            // Loop through the sliced data and create the list
+            strictlyTop10.forEach(item => {
                 const li = document.createElement('li');
-                // Lootlocker returns a 'player' object with a 'name', and a 'score'
                 const playerName = item.player.name || item.player.id; 
                 li.innerText = `${playerName}: ${item.score}`;
                 listElement.appendChild(li);
