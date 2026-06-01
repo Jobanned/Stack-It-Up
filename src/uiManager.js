@@ -94,16 +94,30 @@ export function setupUI(onRestartClick, onSubmitScoreClick) {
         },
         showLeaderboard: (topScores) => {
             loadingText.style.display = 'none';
-            listElement.innerHTML = ''; // Clear old scores
+            listElement.innerHTML = ''; 
             
-            // --- NEW: Force the array to only keep the first 10 items ---
             const strictlyTop10 = topScores.slice(0, 10);
             
-            // Loop through the sliced data and create the list
-            strictlyTop10.forEach(item => {
+            // --- FIX: Add (item, index) here ---
+            strictlyTop10.forEach((item, index) => {
                 const li = document.createElement('li');
+                
+                li.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    width: 100%;
+                    margin-bottom: 8px;
+                    border-bottom: 1px dashed rgba(255,255,255,0.2);
+                    padding-bottom: 4px;
+                `;
+                
                 const playerName = item.player.name || item.player.id; 
-                li.innerText = `${playerName}: ${item.score}`;
+                
+                li.innerHTML = `
+                    <span>${index + 1}. ${playerName}</span>
+                    <span style="font-weight: bold; color: #f1c40f;">${item.score}</span>
+                `;
+                
                 listElement.appendChild(li);
             });
             
