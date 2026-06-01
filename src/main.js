@@ -58,6 +58,11 @@ let perfectCombo = 0;
 const boxHeight = 1;
 const boxSize = 3;
 
+//zooming animation variables
+let zoomOutTarget = null;
+let lookAtTarget = null;
+let targetZoom = 1; //tracks orthographic zoom level for smooth transition
+
 // --- BOX GENERATOR ---
 function createBox(x, y, z, width, depth, color) {
     const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
@@ -198,9 +203,22 @@ function placeBox() {
         setTimeout(() => { isAnimating = false; }, 100);
         
     } else {
+        // --- FAILURE ---
         gameEnded = true;
-        // Trigger the module to show the modal!
-        ui.showGameOver(Math.ceil(score));
+
+        // Calculate the tower height
+        const stackHeight = boxes.length * boxHeight;
+        
+        // 1. Pan the camera straight UP to the middle of the tower (keep X and Z at 10)
+        zoomOutTarget = new THREE.Vector3(10, 10 + (stackHeight / 2), 10);
+        
+        // 2. Calculate the zoom level (Taller tower = smaller zoom number)
+        targetZoom = 15 / (stackHeight + 15); 
+
+        // Delay the Game Over modal
+        setTimeout(() => {
+            ui.showGameOver(Math.ceil(score));
+        }, 1500);
     }
     
 }
@@ -221,6 +239,10 @@ function resetGame() {
     ripples.length = 0;
 
     // Reset Camera
+    zoomOutTarget = null;
+    targetZoom = 1;
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
     camera.position.set(10, 10, 10);
     camera.lookAt(0, 0, 0);
 
@@ -274,7 +296,23 @@ if (currentBox && !gameEnded) {
         overhangs[i].position.y -= 0.1; // Gravity pulling it down
         overhangs[i].rotation.z += 0.05; // Add a nice little tumble effect
     }
-    
+    if (!gameEnded) {
+        // --- GAMEPLAY CAMERA ---
+        // 1. Smoothly move the camera up as the tower grows
+        const targetCameraY = (boxes.length * boxHeight) + 10; 
+        camera.position.y += (targetCameraY - camera.position.y) * 0.1; 
+        
+        // Ensure the camera always looks down at the tower
+        camera.lookAt(0, camera.position.y - 10, 0); 
+    } else if (zoomOutTarget) {
+        // --- GAME OVER CINEMATIC CAMERA ---
+        // Smoothly glide the position up
+        camera.position.lerp(zoomOutTarget, 0.05);
+        
+        // Smoothly zoom out the orthographic view
+        camera.zoom += (targetZoom - camera.zoom) * 0.05;
+        camera.updateProjectionMatrix(); // Required when changing Orthographic zoom!
+    }
     // --- NEW: ANIMATE RIPPLES ---
     // We loop backwards because we are removing items from the array as we go
     for (let i = ripples.length - 1; i >= 0; i--) {
@@ -293,7 +331,11 @@ if (currentBox && !gameEnded) {
             ripples.splice(i, 1);
         }
     }
-
+    if (gameEnded && zoomOutTarget) {
+        // Smoothly glide the camera backwards (0.05 controls the speed/smoothness)
+        camera.position.lerp(zoomOutTarget, 0.05);
+        
+    }
     renderer.render(scene, camera);
 }
 
