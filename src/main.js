@@ -19,12 +19,13 @@ camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(10, 20, 0);
 scene.add(directionalLight);
 
@@ -66,7 +67,11 @@ let targetZoom = 1; //tracks orthographic zoom level for smooth transition
 // --- BOX GENERATOR ---
 function createBox(x, y, z, width, depth, color) {
     const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
-    const material = new THREE.MeshLambertMaterial({ color: color });
+    const material = new THREE.MeshStandardMaterial({ 
+        color: color,
+        roughness: 0.2, // Low roughness = sleek, glossy lacquer surface
+        metalness: 0.1  // Adds a bit of dense, solid mass to the look
+    });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
     scene.add(mesh);
