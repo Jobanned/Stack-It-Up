@@ -120,9 +120,20 @@ function placeBox() {
         
         scene.remove(currentBox);
         
-        // Calculate new dimensions
-        const newWidth = movingAxis === 'x' ? overlap : currentWidth;
-        const newDepth = movingAxis === 'z' ? overlap : currentDepth;
+       // Calculate new dimensions (changed from const to let so we can modify them)
+        let newWidth = movingAxis === 'x' ? overlap : currentWidth;
+        let newDepth = movingAxis === 'z' ? overlap : currentDepth;
+        
+        // --- NEW GIMMICK: RESTORE PIECES ON 10+ COMBO ---
+        // We use 'perfectCombo + 1' because the counter increments a few lines down.
+        // This triggers exactly on the 10th perfect hit and stays active.
+        if (isPerfect && (perfectCombo + 1) >= 10) {
+            if (movingAxis === 'x') {
+                newWidth = Math.min(boxSize, newWidth + 0.5); // Caps it at original size (3)
+            } else if (movingAxis === 'z') {
+                newDepth = Math.min(boxSize, newDepth + 0.5);
+            }
+        }
         
         // Calculate new placement position
         const placedBoxX = movingAxis === 'x' ? newPos : currentBox.position.x;
@@ -151,6 +162,22 @@ function placeBox() {
         } else {
             perfectCombo = 0; 
         }
+            
+        if (currentMultiplier > 1) {
+            // If they are at 10+ combo, stack an extra message!
+            if (perfectCombo >= 10) {
+                comboElement.innerText = `x${currentMultiplier} COMBO!\n+0.5 PLATFORM WIDENED!`;
+                comboElement.style.color = '#2ecc71'; // Temporarily flash green for recovery!
+            } else {
+                comboElement.innerText = `x${currentMultiplier} COMBO!`;
+                comboElement.style.color = '#f1c40f'; // Normal gold combo color
+            }
+            
+            comboElement.style.transform = 'scale(1.2)';
+            setTimeout(() => { comboElement.style.transform = 'scale(1)'; }, 100);
+        } else {
+            comboElement.innerText = ''; 
+        }
 
         score += currentMultiplier;
         scoreElement.innerText = Math.ceil(score); 
@@ -177,8 +204,9 @@ function placeBox() {
         }
 
         // --- UPDATE DIMENSIONS ---
-        if (movingAxis === 'x') currentWidth = overlap;
-        if (movingAxis === 'z') currentDepth = overlap;
+        // Changed from 'overlap' to carry over our newly restored width/depth sizes
+        if (movingAxis === 'x') currentWidth = newWidth;
+        if (movingAxis === 'z') currentDepth = newDepth;
 
         const nextY = currentBox.position.y + boxHeight;
         const randomColor = Math.random() * 0xffffff;
